@@ -21,36 +21,55 @@ class Bloco():
             Número de septos = .nsept\n
             Espessura da parede = .esp\n
             Lista de comprimentos de septos = .lsept\n
-            Inércia em torno do eixo X = .iX\n
-            Inércia em torno do eixo Y = .iY\n
-            Área líquida = .area\n
-            Área bruta = .area_bruta\n
+            Inércia líquida em torno do eixo X = .IxL\n
+            Inércia líquida em torno do eixo Y = .IyL\n
+            Área líquida = .areaL\n
+            Inércia bruta em torno do eixo X = .IxB\n
+            Inércia bruta em torno do eixo Y = .IyB\n
+            Área bruta = .areaB\n
 
 Eficiência de grauteamento é a relação fpk*/fpk\n
 Para todos os cálculos o eixo X está na direção paralela ao comprimento
     """
 
     def __init__(self,comp:int,larg:int,alt:int,tipo:str,graute=[],
-    egraute=1.7,nsept=2,lsept=[],esp=2.5):
+    egraute=2,nsept=2,lsept=[],esp=2.5):
         self.comp = comp
         self.larg = larg
         self.alt = alt
         self.nsept = nsept
         self.lsept = lsept
         self.esp = esp
+        # Se lista de pontos de graute != vazia, reduzir os valores
+        # dentro dela em 1
         graute = [i-1 for i in graute if graute]
+        # Se lista de pontos de graute = vazia, definir fator de
+        # eficiência de graute como 0
         if not graute:
             egraute = 0
         self.egraute = egraute
+        # Se lista de comprimentos de septos vazia, executar função
+        # que calcula o comprimento de cada septo automaticamente
         if not lsept:
             self.lsept = self.auto_sept(tipo)
-        self.Ix = self.inerciaX(comp,larg,graute,egraute,self.nsept,
+
+        # Inércias e áreas
+        self.IxL = self.inerciaX(comp,larg,graute,egraute,self.nsept,
         self.lsept,esp)
-        self.Iy = self.inerciaY(comp,larg,graute,egraute,self.nsept,
+        self.IyL = self.inerciaY(comp,larg,graute,egraute,self.nsept,
         self.lsept,esp)
-        self.area = self.area_F(comp,larg,graute,egraute,self.nsept,
+        self.areaL = self.areaL_F(comp,larg,graute,egraute,self.nsept,
         self.lsept,esp)
-        self.area_bruta = self.comp*self.larg
+        self.IxB = (self.comp*self.larg**3)/12
+        self.IyB = (self.larg*self.comp**3)/12
+        self.areaB = self.comp*self.larg
+
+        # Dados de área, resistência e coordenadas de cada septo
+        # Obter usando lsept, egraute e
+        self.csept = self.sept_comp(self.lsept,self.esp)
+        self.asept = self.sept_area(self.csept,self.larg)
+        self.xysept = self.sept_coords(self.comp,self.larg,self.csept)
+        self.fpk = self.fpk_list(graute)
 
     def auto_sept(self,tipo:str):
         """Retorna lista de septos para os tipos I (septos Iguais),
@@ -116,7 +135,7 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
 
         return iI-iS
 
-    def area_F(self,base,altura,graute,egraute,nsept,lsept,esp):
+    def areaL_F(self,base,altura,graute,egraute,nsept,lsept,esp):
         #Calcula a área do bloco inteiro
         aI = altura*base
         #Calcula a dedução de área de cada septo
@@ -129,3 +148,51 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
             aS += ((altura-2*esp)*lsept[i])*mgraute
 
         return aI-aS
+
+    def sept_comp(self,lsept,esp):
+        """Comprimento de cada septo bruto"""
+        #Se septo for último ou primeiro, comprimento dele é lsept + esp + 1/2 esp
+        #Se não, lsept + 1/2 esp + 1/2 esp
+        csept = []
+        for i in range(len(lsept)):
+            if i == 0 or i == len(lsept)-1:
+                csept.append(lsept[i]+1.0*esp+0.5*esp)
+            else:
+                csept.append(lsept[i]+0.5*esp+0.5*esp)
+        return csept
+
+    def sept_area(self,csept,larg):
+        """Área de cada septo bruto"""
+        asept = []
+        for i in range(len(csept)):
+            asept.append(csept[i]*larg)
+        return asept
+
+    def sept_coords_liquid(self,comp,larg,esp,lsept):
+        """Coordenadas dos vértices de cada septo líquido"""
+        dAc = -comp/2
+        coords = []
+        for i in range(len(lsept)):
+            dAc += esp+lsept[i]/2
+            c1 = [dAc+(lsept[i]/2),-(larg/2)+esp]
+            c2 = [dAc+(lsept[i]/2),(larg/2)-esp]
+            c3 = [dAc-(lsept[i]/2),(larg/2)-esp]
+            c4 = [dAc-(lsept[i]/2),-(larg/2)+esp]
+            coords.append([c1,c2,c3,c4])
+            dAc += lsept[i]/2
+        return coords
+
+    def sept_coords(self,comp,larg,csept):
+        """Coordenadas dos vértices de cada septo bruto"""
+        dAc = -comp/2
+        coords = []
+        for i in range(len(csept)):
+            c1 = [dAc,+larg/2]
+            c2 = [dAc,-larg/2]
+            c3 = [dAc+csept[i],-larg/2]
+            c4 = [dAc+csept[i],+larg/2]
+            coords.append([c1,c2,c3,c4])
+            dAc += csept[i]
+        return coords
+
+    def fpk_list(fbk,graute):

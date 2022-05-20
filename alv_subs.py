@@ -1,4 +1,3 @@
-from re import M
 import families as fam
 
 class Subestrutura():
@@ -33,7 +32,7 @@ class Subestrutura():
         sumY = 0.0
         for i in range(len(self.bList)):
             #Área do bloco
-            area = fam.familia_39x14_dict[self.name_list[i]].area
+            area = fam.familia_39x14_dict[self.name_list[i]].areaB
             sumArea += area
             #Coordenadas X
             cX = self.coordX_list[i]
@@ -57,11 +56,11 @@ class Subestrutura():
             #Cálculo de inércia X da subestrutura
             # 1 - Inércia do bloco
             if self.dir_list[i] == 'X':
-                inercia = fam.familia_39x14_dict[self.name_list[i]].Ix
+                inercia = fam.familia_39x14_dict[self.name_list[i]].IxB
             else:
-                inercia = fam.familia_39x14_dict[self.name_list[i]].Iy
+                inercia = fam.familia_39x14_dict[self.name_list[i]].IyB
             # 2 - Área do bloco
-            area = fam.familia_39x14_dict[self.name_list[i]].area_bruta
+            area = fam.familia_39x14_dict[self.name_list[i]].areaB
             sArea += area
             # 3 - Distância do bloco ao CG da subestrutura
             distancia = self.coordY_list[i] - self.coord_CGY
@@ -70,9 +69,9 @@ class Subestrutura():
             #Cálculo de inércia Y da subestrutura
             # 1 - Inércia do bloco
             if self.dir_list[i] == 'X':
-                inercia = fam.familia_39x14_dict[self.name_list[i]].Iy
+                inercia = fam.familia_39x14_dict[self.name_list[i]].IyB
             else:
-                inercia = fam.familia_39x14_dict[self.name_list[i]].Ix
+                inercia = fam.familia_39x14_dict[self.name_list[i]].IxB
             # 2 - Área do bloco já foi calculada, se declarar aqui dobra
             #area = fam.familia_39x14_dict[self.name_list[i]].area_bruta
             #sArea += area
@@ -81,9 +80,9 @@ class Subestrutura():
             Iy += inercia + area*distancia**2
         return Ix,Iy,sArea
 
-mySub = Subestrutura([('P4015',(7,209.5),'Y'),('P4015',(7,369.5),'Y'),('P4015',(7,129.5),'Y'),('P0515',(7,442),'Y'),('P4015',(7,249.5),'Y'),('P2015',(-70.5,62),'X'),('P4015',(-40.5,62),'X'),('P4015',(7,329.5),'Y'),('P4015',(7,289.5),'Y'),('P3515G2',(7,407),'Y'),('P3515F',(-3,62),'X'),('P2015G',(-10.5,477),'X'),('P4015F',(7,89.5),'Y'),('P3515F',(7,37),'Y'),('P2015G',(7,9.5),'Y'),('P4015',(7,169.5),'Y'),('P3515F',(17,432),'X'),('P4015F',(7,464.5),'Y')])
+#mySub = Subestrutura([('P4015',(7,209.5),'Y'),('P4015',(7,369.5),'Y'),('P4015',(7,129.5),'Y'),('P0515',(7,442),'Y'),('P4015',(7,249.5),'Y'),('P2015',(-70.5,62),'X'),('P4015',(-40.5,62),'X'),('P4015',(7,329.5),'Y'),('P4015',(7,289.5),'Y'),('P3515G2',(7,407),'Y'),('P3515F',(-3,62),'X'),('P2015G',(-10.5,477),'X'),('P4015F',(7,89.5),'Y'),('P3515F',(7,37),'Y'),('P2015G',(7,9.5),'Y'),('P4015',(7,169.5),'Y'),('P3515F',(17,432),'X'),('P4015F',(7,464.5),'Y')])
 #print('area = ', mySub.area/(100**2))
-print(mySub.Ix/(100**4)) #Se minha sub tá em Y, uso Inércia X, que é esse caso estudado
+#print(mySub.Ix/(100**4)) #Se minha sub tá em Y, uso Inércia X, que é esse caso estudado
 #print(mySub.Iy/(100**4))
 #Ix deve ser 2.634
 
@@ -92,12 +91,12 @@ mySub2 = Subestrutura([('P4015',(0,-20),'Y'),('P4015',(0,20),'Y')])
 print(mySub2.Ix/(100**4))
 #print(mySub2.Iy/(100**4))
 
-mySub3 = Subestrutura([('P4015',(0,100),''),('P4015',(0,140),''),('P4015',(0,60),''),('P4015',(0,20),''),('P4015',(0,-20),''),('P4015',(0,-140),''),('P4015',(0,-180),''),('P4015',(0,-100),''),('P4015',(0,180),''),('P4015',(0,-60),'')])
+mySub3 = Subestrutura([('P4015',(0,100),'Y'),('P4015',(0,140),'Y'),('P4015',(0,60),'Y'),('P4015',(0,20),'Y'),('P4015',(0,-20),'Y'),('P4015F',(0,-140),'Y'),('P4015F',(0,-180),'Y'),('P4015',(0,-100),'Y'),('P4015F',(0,180),'Y'),('P4015',(0,-60),'Y'),('P4015F',(0,220),'Y')])
 #print('area = ', mySub3.area/(100**2))
-print(mySub3.Ix/(100**4))
+print('mysub3 ',mySub3.Ix/(100**4))
 #print(mySub3.Iy/(100**4))
 
-mySub4 = Subestrutura([('P2015G',(100,175),'Y'),('P3515F',(100,147.5),'Y'),('P5515G2',(100,267.5),'Y'),('P5515G1',(100,212.5),'Y'),('P2015',(100,30),'Y'),('P4015',(100,0),'Y'),('P3515',(100,112.5),'Y'),('P5515',(100,67.5),'Y'),('P1015',(100,505),'Y'),('P4015F',(100,480),'Y'),('P4015',(100,535),'Y'),('P0515',(100,512.5),'Y'),('P3515G1',(100,367.5),'Y'),('P5515F',(100,322.5),'Y'),('P4015G',(100,440),'Y'),('P3515G2',(100,402.5),'Y')])
-print(mySub4.Ix/(100**4))
+#mySub4 = Subestrutura([('P2015G',(100,175),'Y'),('P3515F',(100,147.5),'Y'),('P5515G2',(100,267.5),'Y'),('P5515G1',(100,212.5),'Y'),('P2015',(100,30),'Y'),('P4015',(100,0),'Y'),('P3515',(100,112.5),'Y'),('P5515',(100,67.5),'Y'),('P1015',(100,505),'Y'),('P4015F',(100,480),'Y'),('P4015',(100,535),'Y'),('P0515',(100,512.5),'Y'),('P3515G1',(100,367.5),'Y'),('P5515F',(100,322.5),'Y'),('P4015G',(100,440),'Y'),('P3515G2',(100,402.5),'Y')])
+#print(mySub4.Ix/(100**4)) #deveria ser 2.517292
 
 #MINHA INERCIA TÁ DANDO SEMPRE MENOR
