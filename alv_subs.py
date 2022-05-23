@@ -1,9 +1,11 @@
 import families as fam
 
-class Subestrutura():
-    def __init__(self,bList = []):
+class Subestrutura_Blocos():
+    def __init__(self,bList = [],fbk = 4.0):
         """Subestrutura de Alvenaria Estrutural"""
         self.bList = bList
+        self.fbk = fbk
+        self.familia = fam.dict_fam(fbk)
         self.name_list,self.coordXY_list,self.coordX_list,self.coordY_list,self.dir_list = self.get_lists()
         self.coord_CGX, self.coord_CGY = self.get_CG()
         self.Ix,self.Iy,self.area = self.get_inertia()
@@ -32,7 +34,7 @@ class Subestrutura():
         sumY = 0.0
         for i in range(len(self.bList)):
             #Área do bloco
-            area = fam.familia_39x14_dict[self.name_list[i]].areaB
+            area = self.familia[self.name_list[i]].areaB
             sumArea += area
             #Coordenadas X
             cX = self.coordX_list[i]
@@ -54,13 +56,18 @@ class Subestrutura():
         sArea = 0.0
         for i in range(len(self.bList)):
             #Cálculo de inércia X da subestrutura
+            # 0 - Correção de rotação
+            if self.dir_list[i] == 0 or self.dir_list[i] == 180:
+                dir = 'X'
+            if self.dir_list[i] == 90 or self.dir_list[i] == 270:
+                dir = 'Y'
             # 1 - Inércia do bloco
-            if self.dir_list[i] == 'X':
-                inercia = fam.familia_39x14_dict[self.name_list[i]].IxB
+            if dir == 'X':
+                inercia = self.familia[self.name_list[i]].IxB
             else:
-                inercia = fam.familia_39x14_dict[self.name_list[i]].IyB
+                inercia = self.familia[self.name_list[i]].IyB
             # 2 - Área do bloco
-            area = fam.familia_39x14_dict[self.name_list[i]].areaB
+            area = self.familia[self.name_list[i]].areaB
             sArea += area
             # 3 - Distância do bloco ao CG da subestrutura
             distancia = self.coordY_list[i] - self.coord_CGY
@@ -68,18 +75,19 @@ class Subestrutura():
 
             #Cálculo de inércia Y da subestrutura
             # 1 - Inércia do bloco
-            if self.dir_list[i] == 'X':
-                inercia = fam.familia_39x14_dict[self.name_list[i]].IyB
+            if dir == 'X':
+                inercia = self.familia[self.name_list[i]].IyB
             else:
-                inercia = fam.familia_39x14_dict[self.name_list[i]].IxB
+                inercia = self.familia[self.name_list[i]].IxB
             # 2 - Área do bloco já foi calculada, se declarar aqui dobra
-            #area = fam.familia_39x14_dict[self.name_list[i]].area_bruta
+            #area = self.familia[self.name_list[i]].area_bruta
             #sArea += area
             # 3 - Distância do bloco ao CG da subestrutura
             distancia = self.coordX_list[i] - self.coord_CGX
             Iy += inercia + area*distancia**2
         return Ix,Iy,sArea
 
+"""
 #mySub = Subestrutura([('P4015',(7,209.5),'Y'),('P4015',(7,369.5),'Y'),('P4015',(7,129.5),'Y'),('P0515',(7,442),'Y'),('P4015',(7,249.5),'Y'),('P2015',(-70.5,62),'X'),('P4015',(-40.5,62),'X'),('P4015',(7,329.5),'Y'),('P4015',(7,289.5),'Y'),('P3515G2',(7,407),'Y'),('P3515F',(-3,62),'X'),('P2015G',(-10.5,477),'X'),('P4015F',(7,89.5),'Y'),('P3515F',(7,37),'Y'),('P2015G',(7,9.5),'Y'),('P4015',(7,169.5),'Y'),('P3515F',(17,432),'X'),('P4015F',(7,464.5),'Y')])
 #print('area = ', mySub.area/(100**2))
 #print(mySub.Ix/(100**4)) #Se minha sub tá em Y, uso Inércia X, que é esse caso estudado
@@ -100,3 +108,4 @@ print('mysub3 ',mySub3.Ix/(100**4))
 #print(mySub4.Ix/(100**4)) #deveria ser 2.517292
 
 #MINHA INERCIA TÁ DANDO SEMPRE MENOR
+# motivo: TQS considera inércia bruta, eu estava calculando a líquida"""

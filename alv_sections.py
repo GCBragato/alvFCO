@@ -1,5 +1,8 @@
+from re import L
+from alv_fbk import Bloco_Concreto
+
+
 class Bloco():
-    #get área por septo
     """Bloco de alvenaria estrutural em concreto armado.\n
     Insira: (comprimento, largura, altura, tipo, lista com índice de
     septos grauteados da esquerda para a direita, coeficiente de
@@ -37,9 +40,14 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         self.comp = comp
         self.larg = larg
         self.alt = alt
+        if nsept == 0:
+            nsept = 1
+            lsept = [comp]
         self.nsept = nsept
         self.lsept = lsept
         self.esp = esp
+        # 'graute' é uma lista indicando se o septo, enumerado da
+        # esquerda para a direita, está grauteado
         # Se lista de pontos de graute != vazia, reduzir os valores
         # dentro dela em 1
         graute = [i-1 for i in graute if graute]
@@ -69,7 +77,7 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         self.csept = self.sept_comp(self.lsept,self.esp)
         self.asept = self.sept_area(self.csept,self.larg)
         self.xysept = self.sept_coords(self.comp,self.larg,self.csept)
-        self.fpk = self.fpk_list(graute)
+        self.xyseptCG = self.sept_coordsCG(self.xysept)
 
     def auto_sept(self,tipo:str):
         """Retorna lista de septos para os tipos I (septos Iguais),
@@ -136,10 +144,12 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         return iI-iS
 
     def areaL_F(self,base,altura,graute,egraute,nsept,lsept,esp):
-        #Calcula a área do bloco inteiro
+        #Calcula a área líquida do bloco inteiro
         aI = altura*base
         #Calcula a dedução de área de cada septo
         aS = 0
+        if nsept == 0:
+            return aI
         for i in range(nsept):
             if i in graute:
                 mgraute = 2-egraute
@@ -154,6 +164,8 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         #Se septo for último ou primeiro, comprimento dele é lsept + esp + 1/2 esp
         #Se não, lsept + 1/2 esp + 1/2 esp
         csept = []
+        if len(lsept) == 0:
+            return [self.comp]
         for i in range(len(lsept)):
             if i == 0 or i == len(lsept)-1:
                 csept.append(lsept[i]+1.0*esp+0.5*esp)
@@ -164,6 +176,8 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
     def sept_area(self,csept,larg):
         """Área de cada septo bruto"""
         asept = []
+        if len(csept) == 0:
+            return self.areaL
         for i in range(len(csept)):
             asept.append(csept[i]*larg)
         return asept
@@ -195,4 +209,28 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
             dAc += csept[i]
         return coords
 
-    def fpk_list(fbk,graute):
+    def sept_coordsCG(self,xysept):
+        """Coordenas do CG de cada septo"""
+        # xysept é uma lista de listas
+        # A lista [0] tem o comprimento igual ao número de septos do bloco
+        # A lista [1] tem o comprimento de 4, sendo cada um uma lista
+        # A lista [2] tem o comprimento de 2, são coordenadas cartesianas
+
+        # Precisamos retornar 1 lista d2
+        # Lista [0] é uma lista de septos
+        # Lista [1] é uma lista com CG de cada septo
+        septo = []
+        for m in range(len(xysept)): # Loop externo, percorre septos
+            cgX = 0.0
+            cgY = 0.0
+            coorsX = []
+            coorsY = []
+            # PODE SER OTIMIZAADO PARA 1 SÓ LOOP
+            for i in range(4): # Loop interno a, extrai as coordenadas
+                coorsX.append(xysept[m][i][0])
+                coorsY.append(xysept[m][i][1])
+            for i in range(4): #Loop interno b, calcula o CG
+                cgX += (coorsX[i-1]+coorsX[i])*(coorsX[i-1]*coorsY[i]-coorsX[i]*coorsY[i-1])
+                cgY += (coorsY[i-1]+coorsY[i])*(coorsX[i-1]*coorsY[i]-coorsX[i]*coorsY[i-1])
+            septo.append([cgX/(6*self.asept[m]),cgY/(6*self.asept[m])])
+        return septo
