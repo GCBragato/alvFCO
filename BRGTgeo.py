@@ -40,3 +40,60 @@ def line_slope_2p(x1,y1,x2,y2):
 def line_inclination_slope(slope):
     """Inclination in radians from line slope"""
     return math.atan(slope)
+
+def data_of_polyline(polyline):
+    # Particiona os pontos X e Y da polilinha em duas listas
+    coorsX = []
+    coorsY = []
+    for XY in polyline:
+        coorsX.append(XY[0])
+        coorsY.append(XY[1])
+
+    #Calcula a área e o centroide de um polígono
+    sArea = 0.0
+    cgX = 0
+    cgY = 0
+    for i in range(len(coorsX)):
+        sArea += (coorsX[i-1]+coorsX[i])*(coorsY[i-1]-coorsY[i])
+        cgX += (coorsX[i-1]+coorsX[i])*(coorsX[i-1]*coorsY[i]-coorsX[i]*coorsY[i-1])
+        cgY += (coorsY[i-1]+coorsY[i])*(coorsX[i-1]*coorsY[i]-coorsX[i]*coorsY[i-1])
+    sArea = abs(sArea/2)
+    cgX = cgX/(6*sArea)
+    cgY = cgY/(6*sArea)
+    return sArea, cgX, cgY
+
+def discretize(polyline,N):
+    """Dividir uma polilinha em n*n segmentos. Cada lado será dividido
+    por n. Retorna lista de polilinhas com 4 vértices e sua área.
+    Os vértices devem ser listados em ordem anti-horária.
+
+    Args:
+        polyline (list): lista de 4 vértices
+        N (integer): número de divisões por lado
+    """
+
+    # 1 - Encontrar ângulo da reta A->B com o eixo x
+    theta = math.atan((polyline[1][1]-polyline[0][1])/(polyline[1][0]-polyline[0][0]))
+    # 2 - Encontrar o comprimento dos vetores X0,Y0->X1,Y1 e X0,Y0->X3,Y3
+    r = dist_2p(polyline[0][0],polyline[0][1],polyline[1][0],polyline[1][1])
+    t = dist_2p(polyline[0][0],polyline[0][1],polyline[3][0],polyline[3][1])
+    # 3 - Encontrar os lados/2 de cada seção discretizada
+    m = r/(2*N)
+    n = t/(2*N)
+    # 4 - Área da seção discretizada
+    area = (m*2)*(n*2)
+    # 5 - Início da lista de seções
+    sect = []
+    # 6 - Loops
+    for i in range(N): # Loop externo
+        v = i*(2*n)+n
+        for j in range(N): # Loop interno
+            u = j*(2*m)+m
+            alfa = math.atan(v/u)
+            hip = math.sqrt(u**2+v**2)
+            x = math.cos(alfa+theta)*hip
+            y = math.sin(alfa+theta)*hip
+            xcg = polyline[0][0]+x
+            ycg = polyline[0][1]+y
+            sect.append([[xcg,ycg],area])
+    return sect #lista de cg e área de cada segmento

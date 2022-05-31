@@ -35,8 +35,8 @@ class Bloco_Concreto:
     Propriedades:
     Coeficiente de Dilatação Térmica = .cDilTermica [/°C],
     .fbk [MPa], .fa [MPa], .fgk [MPa], .fpk_gpk, .fpkG_fpk, .fpk [MPa],
-    .fpkG [MPa], .ftk [MPa], .Eb [MPa], .EbG [MPa], .y_a, .y_g,
-    .fd [MPa], .fdG [MPa], .Eps_bu [o/oo]
+    .fpkG [MPa], .ftk [MPa], .Eb [MPa], .EbG [MPa], .fk [MPa], .fkG [MPa]
+    .y_a, .y_g, .fd [MPa], .fdG [MPa], .Eps_bu [o/oo]
     """
     def __init__(self, fbk, y_a = 2.0, y_g = 2.0):
 
@@ -51,6 +51,8 @@ class Bloco_Concreto:
         self.ftk = alv_fbk[fbk]['ftk']
         self.Eb = alv_fbk[fbk]['E']
         self.EbG = alv_fbk[fbk]['E*']
+        self.fk = 0.7*self.fpk
+        self.fkG = 0.7*self.fpkG
         self.y_a = y_a
         self.y_g = y_g
         self.fd = 0.7*self.fpk/self.y_a

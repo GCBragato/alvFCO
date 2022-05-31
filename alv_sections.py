@@ -1,7 +1,6 @@
 from re import L
 from alv_fbk import Bloco_Concreto
 
-
 class Bloco():
     """Bloco de alvenaria estrutural em concreto armado.\n
     Insira: (comprimento, largura, altura, tipo, lista com índice de
@@ -55,6 +54,7 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         # eficiência de graute como 0
         if not graute:
             egraute = 0
+        self.graute = graute
         self.egraute = egraute
         # Se lista de comprimentos de septos vazia, executar função
         # que calcula o comprimento de cada septo automaticamente

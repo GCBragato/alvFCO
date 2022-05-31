@@ -1,4 +1,6 @@
+import math
 import families as fam
+import BRGTgeo
 
 class Subestrutura_Blocos():
     def __init__(self,bList = [],fbk = 4.0):
@@ -6,9 +8,12 @@ class Subestrutura_Blocos():
         self.bList = bList
         self.fbk = fbk
         self.familia = fam.dict_fam(fbk)
-        self.name_list,self.coordXY_list,self.coordX_list,self.coordY_list,self.dir_list = self.get_lists()
+        (self.name_list,self.coordXY_list,self.coordX_list,
+        self.coordY_list,self.dir_list) = self.get_lists()
         self.coord_CGX, self.coord_CGY = self.get_CG()
-        self.Ix,self.Iy,self.area = self.get_inertia()
+        #self.Ix,self.Iy,self.area = self.get_inertia()
+        self.sept_list = self.discr_septos(self.familia,self.name_list,
+        self.coordX_list,self.coordY_list,self.dir_list)
 
     def get_lists(self):
         """Quebra a lista de entrada em outras listas simples"""
@@ -86,6 +91,28 @@ class Subestrutura_Blocos():
             distancia = self.coordX_list[i] - self.coord_CGX
             Iy += inercia + area*distancia**2
         return Ix,Iy,sArea
+
+    def discr_septos(self,familia,names,coordsX,coordsY,dirs):
+        sept_list = []
+        # 1 - Pegar coordenadas do septo de cada bloco e transformar
+        for m in range(len(names)): #loop de blocos
+            for n in range(familia[names[m]].nsept): #loop de septos
+                graute = False
+                if n in familia[names[m]].graute:
+                    graute = True
+                new_vertices = []
+                #Cada septo tem 4 vértices
+                for o in range(4): #loop de vértices
+                    xlin,ylin = familia[names[m]].xysept[n][o]
+                    x = round(xlin*math.cos(math.radians(dirs[m])) - ylin*math.sin(math.radians(dirs[m])),9)
+                    y = round(xlin*math.sin(math.radians(dirs[m])) - ylin*math.cos(math.radians(dirs[m])),9)
+                    xnew = x+coordsX[m]
+                    ynew = y+coordsY[m]
+                    new_vertices.append([xnew,ynew])
+                sArea,cgX,cgY = BRGTgeo.data_of_polyline(new_vertices)
+                cg = [cgX,cgY]
+                sept_list.append([new_vertices,cg,sArea,graute])
+        return sept_list
 
 """
 #mySub = Subestrutura([('P4015',(7,209.5),'Y'),('P4015',(7,369.5),'Y'),('P4015',(7,129.5),'Y'),('P0515',(7,442),'Y'),('P4015',(7,249.5),'Y'),('P2015',(-70.5,62),'X'),('P4015',(-40.5,62),'X'),('P4015',(7,329.5),'Y'),('P4015',(7,289.5),'Y'),('P3515G2',(7,407),'Y'),('P3515F',(-3,62),'X'),('P2015G',(-10.5,477),'X'),('P4015F',(7,89.5),'Y'),('P3515F',(7,37),'Y'),('P2015G',(7,9.5),'Y'),('P4015',(7,169.5),'Y'),('P3515F',(17,432),'X'),('P4015F',(7,464.5),'Y')])
