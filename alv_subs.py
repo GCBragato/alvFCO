@@ -11,9 +11,13 @@ class Subestrutura_Blocos():
         (self.name_list,self.coordXY_list,self.coordX_list,
         self.coordY_list,self.dir_list) = self.get_lists()
         self.coord_CGX, self.coord_CGY = self.get_CG()
+        self.coordXYCG_list = self.get_coords_to_CG()
         #self.Ix,self.Iy,self.area = self.get_inertia()
         self.sept_list = self.discr_septos(self.familia,self.name_list,
         self.coordX_list,self.coordY_list,self.dir_list)
+
+    def __len__(self):
+        return len(self.bList)
 
     def get_lists(self):
         """Quebra a lista de entrada em outras listas simples"""
@@ -29,6 +33,17 @@ class Subestrutura_Blocos():
             coordY_list.append(self.bList[i][1][1])
             dir_list.append(self.bList[i][2])
         return name_list,coordXY_list,coordX_list,coordY_list,dir_list
+
+    def get_coords_to_CG(self):
+        """Retorna as coordenadas para o centro de gravidade"""
+        # Para cada bloco, subtrair coordenadas do CG da subestrutura
+        # e somar às coordenadas do bloco
+        coordXYCG_list = []
+        for i in range(len(self.bList)):
+            coordXCG = self.coordX_list[i] - self.coord_CGX
+            coordYCG = self.coordY_list[i] - self.coord_CGY
+            coordXYCG_list.append([coordXCG,coordYCG])
+        return coordXYCG_list
 
     def get_CG(self):
         """Encontra o centro de gravidade da subestrutura"""

@@ -97,3 +97,10 @@ def discretize(polyline,N):
             ycg = polyline[0][1]+y
             sect.append([[xcg,ycg],area])
     return sect #lista de cg e área de cada segmento
+
+def axis_rotation(x,y,theta):
+    """Return a point to a new rotated axis"""
+    theta = math.radians(theta)
+    xr = x*math.cos(theta)-y*math.sin(theta)
+    yr = x*math.sin(theta)+y*math.cos(theta)
+    return xr, yr

@@ -1,6 +1,3 @@
-from re import L
-from alv_fbk import Bloco_Concreto
-
 class Bloco():
     """Bloco de alvenaria estrutural em concreto armado.\n
     Insira: (comprimento, largura, altura, tipo, lista com índice de
@@ -29,6 +26,10 @@ class Bloco():
             Inércia bruta em torno do eixo X = .IxB\n
             Inércia bruta em torno do eixo Y = .IyB\n
             Área bruta = .areaB\n
+            Lista de comprimentos de cada septo = .csept\n
+            Lista de áreas de cada septo = .asept\n
+            Lista de coordenadas dos septos = .xysept\n
+            Lista de coord. dos septos em relação ao CG = .xyseptCG\n
 
 Eficiência de grauteamento é a relação fpk*/fpk\n
 Para todos os cálculos o eixo X está na direção paralela ao comprimento
@@ -72,12 +73,14 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
         self.IyB = (self.larg*self.comp**3)/12
         self.areaB = self.comp*self.larg
 
-        # Dados de área, resistência e coordenadas de cada septo
-        # Obter usando lsept, egraute e
+        # Dados de área e coordenadas de cada septo
         self.csept = self.sept_comp(self.lsept,self.esp)
         self.asept = self.sept_area(self.csept,self.larg)
         self.xysept = self.sept_coords(self.comp,self.larg,self.csept)
         self.xyseptCG = self.sept_coordsCG(self.xysept)
+
+        # Coordenadas de cada bloco
+        self.bcoords = self.bloco_coords(self.comp,self.larg)
 
     def auto_sept(self,tipo:str):
         """Retorna lista de septos para os tipos I (septos Iguais),
@@ -234,3 +237,11 @@ Para todos os cálculos o eixo X está na direção paralela ao comprimento
                 cgY += (coorsY[i-1]+coorsY[i])*(coorsX[i-1]*coorsY[i]-coorsX[i]*coorsY[i-1])
             septo.append([cgX/(6*self.asept[m]),cgY/(6*self.asept[m])])
         return septo
+
+    def bloco_coords(self,comp,larg):
+        """Coordenadas dos vértices do bloco"""
+        c1 = [comp/2,larg/2]
+        c2 = [-comp/2,larg/2]
+        c3 = [-comp/2,-larg/2]
+        c4 = [comp/2,-larg/2]
+        return [c1,c2,c3,c4]
