@@ -66,10 +66,10 @@ sub_blo = a_sub.Subestrutura_Blocos(
     ]
     ,fbk)
 sub_aco = [
-        [8,(0,-9.125)],
-        [8,(0,9.125)],
-        [8,(0,30.875)],
-        [8,(0,49.1265)]
+        [8,[0,-9.125]],
+        [8,[0,9.125]],
+        [8,[0,30.875]],
+        [8,[0,49.1265]]
     ]
 
 # Dados necessários para AlvEst:
@@ -84,11 +84,13 @@ trav_b = False # Status de travamento por flange lado B
 # k_a e k_b deve ser calculado para cada seção discretizada
 sub_dir = 'Y' # Direção da subestrutura
 # metodo = 2 # Ver mais abaixo - abortado para FCO, aqui para lembrar
+egraute = a_fbk.alv_fbk[fbk]['fpk*/fpk']
 
 # 2 - Tensões de dimensionamento
 fd = resistencias.fd # MPa
 fdG = resistencias.fdG # MPa
-fyd = aco.fyd/2 # MPa
+fydt = aco.fyd/2 # MPa
+fydc = aco.fyd # MPa
 
 # 3 - Separação de septos da subestrutura
 # 0 - coordenadas dos vértices
@@ -140,22 +142,24 @@ for dA in dA_b:
     else:
         area_b += dA[1]
 
-# NRd máxima
-# R = 0.85
-NRd_max = (fd*cv_un.convPressao('MPa','tf/cm2')*R*(area_a+area_b)+
-fdG*cv_un.convPressao('MPa','tf/cm2')*R*(area_aG+area_bG))
-
-# 5 - Normal Mínima
+# Soma da área de aço, entra na compressão para cálculo de FCO
 sum_As = 0.0
 for aco in sub_aco:
     sum_As += math.pi*aco[0]**2/400 # cm²
-NRd_min = -fyd*cv_un.convPressao('MPa','tf/cm2')*sum_As # tf
+
+# NRd máxima
+R = 0.85
+NRd_max = (fd*cv_un.convPressao('MPa','tf/cm2')*R*(area_a+area_b)+
+fdG*cv_un.convPressao('MPa','tf/cm2')*R*(area_aG+area_bG-sum_As)
++fydc*cv_un.convPressao('MPa','tf/cm2')*sum_As)
+
+# 5 - Normal Mínima
+NRd_min = -fydt*cv_un.convPressao('MPa','tf/cm2')*sum_As # tf
 
 # 6 - Coordenadas mais distantes do CG para cada quadrante
 # Para calcular a altura útil (d) de cada ângulo de linha neutra (alfa)
 # 6.1 - Lista de coordenadas extremas de cada bloco
 coords_blocos = sub_blo.coordXYCG_list
-teste = sub_blo.coordXY_list
 coords_extremas = []
 
 for i in range(len(sub_blo)):
@@ -239,17 +243,24 @@ dA_m = []
 # Seções discretizadas da região 'b' = dA_b
 # Status de travamento da região 'a' = trav_a
 # Status de travamento da região 'b' = trav_b
+# Para isso também, precisamos majorar a área de cada um pelo coeficiente
+# de eficiência de graute.
 for dA in dA_a:
-    dA_n.append([dA[0],dA[1]/R])
+    if dA[2]:
+        coef_graute = egraute
+    else:
+        coef_graute = 1.0
+    dA_n.append([dA[0],dA[1]*R*coef_graute])
     k = get_k(trav_a,dA[2],R)
-    dA_m.append([dA[0],dA[1]/k])
+    dA_m.append([dA[0],dA[1]*k*coef_graute])
 for dA in dA_b:
-    dA_n.append([dA[0],dA[1]/R])
+    if dA[2]:
+        coef_graute = egraute
+    else:
+        coef_graute = 1.0
+    dA_n.append([dA[0],dA[1]*R*coef_graute])
     k = get_k(trav_b,dA[2],R)
-    dA_m.append([dA[0],dA[1]/k])
-
-# Para simplificar, juntaremos as duas listas em uma
-secoes = [dA_n,dA_m]
+    dA_m.append([dA[0],dA[1]*k*coef_graute])
 
 # Equação da linha neutra que depende só da normal que será iterada
 # pelo método de brentq. Para encontrar a soma das tensões pelas
@@ -259,7 +270,38 @@ secoes = [dA_n,dA_m]
 # A inclinação da linha neutra usada depende da discretização requerida
 # Por enquanto, usarei 0 radianos.
 
-inc_x = 0 # rad
+inc_x = 0 # deg
+# A sub_aco de entrada foi para coordendas globais.
+# Preciso atualizar a coordenada de cada barra para em relação ao
+# centro de gravidade da subestrutura
+for aco in sub_aco:
+    aco[1][0] -= sub_blo.coord_CGX
+    aco[1][1] -= sub_blo.coord_CGY
+
+# Para entrar na equação de FCO, precisamos rotacionar as coordenadas
+# de dA n e m para que a linha neutra seja a horizontal
+for dA in dA_n:
+    dA[0][0],dA[0][1] = BRGTgeo.axis_rotation(dA[0][0],dA[0][1],inc_x)
+for dA in dA_m:
+    dA[0][0],dA[0][1] = BRGTgeo.axis_rotation(dA[0][0],dA[0][1],inc_x)
+secoes = [dA_n,dA_m]
+
+# Idem, precisamos rotacionar as coordnedas de sub_aco
+for aco in sub_aco:
+    aco[1][0],aco[1][1] = BRGTgeo.axis_rotation(aco[1][0],aco[1][1],inc_x)
+
+# Encontrar altura últil para inc_x
+d_fc = 0.0 # Distância do CG à fibra mais comprimida
+for i in range(4):
+    x,y = BRGTgeo.axis_rotation(ver_dist[i][0],ver_dist[i][1],inc_x)
+    if y >= 0:
+        d_fc = max(d_fc,BRGTgeo.dist_point_line_inc(x,y,inc_x))
+d_ft = 0.0 # Distância do CG à fibra mais tracionada
+for aco in sub_aco:
+    x,y = BRGTgeo.axis_rotation(aco[1][0],aco[1][1],inc_x)
+    if y <= 0:
+        d_ft = max(d_ft,BRGTgeo.dist_point_line_inc(x,y,inc_x))
+d = abs(d_fc)+abs(d_ft) # Soma das distâncias = altura útil
 
 # Pra obtenção de tensão do bloco, depende do status de graute
 # Porém, o método escolhido para calculado FCO é ponderar a área com egraute
@@ -271,10 +313,76 @@ def tensao_bloco(Eps):
 def tensao_aco(Eps):
     return a_fbk.o_s_de_Eps_s(Eps)
 
-def esforcos(x=0.0,secoes=[],sub_aco=[],inc_x=0.0):
-    x = 0
-    return x
+def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],inc_x=0.0,d_fc = 0.0,egraute=1.0,fydc=0.0,fydt=0.0,fd=0.0):
+    # Equação f(xln) = N - sum(ob*Ab)-sum(os*As)
+    # Encontrar quais áreas entram no cálculo, com base em X
+    # Preciso computar a distância da face mais comprimida até a seção
+    sum_secoes_c = 0.0
+    sum_secoes_t = 0.0
 
-esforcos_parcial = partial(esforcos,secoes=secoes,sub_aco=sub_aco,inc_x=inc_x)
-x = brentq(esforcos_parcial(),-100,100)
-print(x)
+    for dA in secoes[0]:
+        # Se a área estiver dentro do retângulo 0.8*x, entra na soma
+        if dA[0][1] >= d_fc - x*0.8:
+            sum_secoes_c += dA[1]
+    # Preciso corrigir essa área se ela tem uma barra de aço dentro
+    for aco in sub_aco:
+        if aco[1][1] >= d_fc - x*0.8:
+            # Multiplico por egraute pois estou usando a área de tensão
+            # corrigida para o bloco não grauteado. Logo, preciso
+            # aumentar a redução de área de aço pois ele sempre estará
+            # dentro de um septo grauteado
+            sum_secoes_c -= egraute*math.pi*aco[0]**2/4
+            # Na mesma ideia, preciso aumentar a área de tensão à
+            # compressão, encontrando uma área equivalente se a tensão
+            # fosse fd
+            sum_secoes_c += (egraute*math.pi*aco[0]**2/4)*fydc/fd
+    forcas_c = sum_secoes_c*cv_un.convArea('cm2','m2')*fd*cv_un.convForca('kN','tf')
+
+    # Para encontrar os esforços de tração, preciso calcular a
+    # deformação em cada barra
+    # Primeiro: encontrar o ângulo da deformação
+    if x == 0.0:
+        x = 0.01
+    ang_def = math.atan(3/x)
+    defs = []
+    for aco in sub_aco:
+        if aco[1][1] <= d_fc - x:
+            d_this = d_fc-aco[1][1]
+            defs.append((d_this-x)*math.tan(ang_def))
+    forcas_t = 0.0
+    aco = a_fbk.Aco_Passivo()
+    for eps in defs:
+        forcas_t += aco.o_s_de_Eps_s(eps)*fydt*cv_un.convForca('kN','tf')
+
+    print('normal',normal)
+    print('forcas_c',forcas_c)
+    print('forcas_t',forcas_t)
+    soma = normal + forcas_c - forcas_t
+    return soma
+
+normal = NRd_max/2
+esforcos_parcial = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,inc_x=inc_x,d_fc=d_fc,egraute=egraute,fydc=fydc,fydt=fydt,fd=fd)
+teste = esforcos_parcial(x=25)
+
+# Testa se f(val1) > 0, se sim, diminui val1
+# Testa se f(fal2) < 0, se sim, aumenta val2
+# Se não encontrar dentro de 10 tentativas, retorna erro
+val1 = -d
+val2 = 2*d
+print(esforcos_parcial(x=val1))
+print(esforcos_parcial(x=val2))
+errorLevel = False
+for i in range(99):
+    if esforcos_parcial(x=val1) >= 0:
+        val1 = 10*val1
+    if esforcos_parcial(x=val2) <= 0:
+        val2= 10*val2
+    if esforcos_parcial(x=val1) < 0 and esforcos_parcial(x=val2) > 0:
+        break
+    if i == 98:
+        errorLevel = True
+        break
+print(errorLevel)
+
+#x = brentq(esforcos_parcial(),val1,val2,xtol=1e-6,rtol=1e-6)
+#print(x)
