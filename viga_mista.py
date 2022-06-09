@@ -13,22 +13,22 @@ import alv_subs as a_sub
 import math
 
 # Entrada de Dados
-hc = 29 # cm
-hb = 16 # cm
+hc = 12 # cm
+hb = 39 # cm
 bw = 14 # cm
-d = 43 # cm
+d = 12+39-3 # cm
 lamba = 0.8
-alfa_c = 1.0
-alfa_b = 0.85
-Mk = 2.38 #tf.m
-gama = 1.4
-fcd = 3.2 # MPa
-fbd = 21.43 # MPa
+alfa_c = 0.85
+alfa_b = 1.0
+Mk = 3.384 #tf.m
+gama_f = 1.0
+fcd = 20/1.4 # MPa
+fbd = 6.4/2 # MPa
 fyd = (500/1.15)*cv_un.convPressao('MPa','tf/cm2')
 
 print('\n'+'---- RESULTADOS ----'+'\n')
 cv_aux = cv_un.convPressao('MPa','tf/cm2')
-Md = Mk*gama*cv_un.convMomento('tf.m','tf.cm')
+Md = Mk*gama_f*cv_un.convMomento('tf.m','tf.cm')
 # Cálculo de fd equivalente por média ponderada
 fdeq = (fcd*(alfa_b/alfa_c)*hc+fbd*(alfa_b/alfa_c)*hb)/(hc+hb)
 print('fdeq = ',round(fdeq,2),'MPa')

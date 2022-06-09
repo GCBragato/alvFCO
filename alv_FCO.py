@@ -13,6 +13,9 @@ import alv_subs as a_sub
 import math
 from scipy.optimize import brentq
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 def discretizar_septos(septos,N):
     """Discretiza cada septo em N² segmentos. Cada lado será dividido
     por N. Retorna lista de septos com seu cg, área e status de graute.
@@ -89,8 +92,7 @@ egraute = a_fbk.alv_fbk[fbk]['fpk*/fpk']
 # 2 - Tensões de dimensionamento
 fd = resistencias.fd # MPa
 fdG = resistencias.fdG # MPa
-fydt = aco.fyd/2 # MPa
-fydc = aco.fyd # MPa
+fyd = aco.fyd # MPa
 
 # 3 - Separação de septos da subestrutura
 # 0 - coordenadas dos vértices
@@ -98,7 +100,7 @@ fydc = aco.fyd # MPa
 # 2 - área do septo
 # 3 - status de graute
 septos = sub_blo.sept_list
-N = 50
+N = 99
 
 discret = discretizar_septos(septos,N)
 # Áreas discretizadas:
@@ -150,11 +152,11 @@ for aco in sub_aco:
 # NRd máxima
 R = 0.85
 NRd_max = (fd*cv_un.convPressao('MPa','tf/cm2')*R*(area_a+area_b)+
-fdG*cv_un.convPressao('MPa','tf/cm2')*R*(area_aG+area_bG-sum_As)
-+fydc*cv_un.convPressao('MPa','tf/cm2')*sum_As)
+fdG*cv_un.convPressao('MPa','tf/cm2')*R*(area_aG+area_bG)
++fyd*cv_un.convPressao('MPa','tf/cm2')*sum_As)
 
 # 5 - Normal Mínima
-NRd_min = -fydt*cv_un.convPressao('MPa','tf/cm2')*sum_As # tf
+NRd_min = -fyd*cv_un.convPressao('MPa','tf/cm2')*sum_As # tf
 
 # 6 - Coordenadas mais distantes do CG para cada quadrante
 # Para calcular a altura útil (d) de cada ângulo de linha neutra (alfa)
@@ -245,6 +247,7 @@ dA_m = []
 # Status de travamento da região 'b' = trav_b
 # Para isso também, precisamos majorar a área de cada um pelo coeficiente
 # de eficiência de graute.
+
 for dA in dA_a:
     if dA[2]:
         coef_graute = egraute
@@ -271,6 +274,14 @@ for dA in dA_b:
 # Por enquanto, usarei 0 radianos.
 
 inc_x = 0 # deg
+# As áreas discretizadas foram para coordendas globais.
+# Preciso atualizar a coordenada de cada barra para em relação ao
+# centro de gravidade da subestrutura
+for i in range(len(dA_n)):
+    dA_n[i][0][0] -= sub_blo.coord_CGX
+    dA_n[i][0][1] -= sub_blo.coord_CGX
+    dA_m[i][0][0] -= sub_blo.coord_CGY
+    dA_m[i][0][1] -= sub_blo.coord_CGY
 # A sub_aco de entrada foi para coordendas globais.
 # Preciso atualizar a coordenada de cada barra para em relação ao
 # centro de gravidade da subestrutura
@@ -286,7 +297,7 @@ for dA in dA_m:
     dA[0][0],dA[0][1] = BRGTgeo.axis_rotation(dA[0][0],dA[0][1],inc_x)
 secoes = [dA_n,dA_m]
 
-# Idem, precisamos rotacionar as coordnedas de sub_aco
+# Idem, precisamos rotacionar as coordenadas de sub_aco
 for aco in sub_aco:
     aco[1][0],aco[1][1] = BRGTgeo.axis_rotation(aco[1][0],aco[1][1],inc_x)
 
@@ -313,76 +324,101 @@ def tensao_bloco(Eps):
 def tensao_aco(Eps):
     return a_fbk.o_s_de_Eps_s(Eps)
 
-def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],inc_x=0.0,d_fc = 0.0,egraute=1.0,fydc=0.0,fydt=0.0,fd=0.0):
+def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],d_fc = 0.0,egraute=1.0,fyd=0.0,fd=0.0):
     # Equação f(xln) = N - sum(ob*Ab)-sum(os*As)
     # Encontrar quais áreas entram no cálculo, com base em X
     # Preciso computar a distância da face mais comprimida até a seção
     sum_secoes_c = 0.0
-    sum_secoes_t = 0.0
-
     for dA in secoes[0]:
         # Se a área estiver dentro do retângulo 0.8*x, entra na soma
-        if dA[0][1] >= d_fc - x*0.8:
+        if dA[0][1] >= (d_fc - x*0.8):
+            #print('dA[0][1] = ',dA[0][1])
             sum_secoes_c += dA[1]
     # Preciso corrigir essa área se ela tem uma barra de aço dentro
     for aco in sub_aco:
         if aco[1][1] >= d_fc - x*0.8:
-            # Multiplico por egraute pois estou usando a área de tensão
-            # corrigida para o bloco não grauteado. Logo, preciso
-            # aumentar a redução de área de aço pois ele sempre estará
-            # dentro de um septo grauteado
-            sum_secoes_c -= egraute*math.pi*aco[0]**2/4
-            # Na mesma ideia, preciso aumentar a área de tensão à
-            # compressão, encontrando uma área equivalente se a tensão
-            # fosse fd
-            sum_secoes_c += (egraute*math.pi*aco[0]**2/4)*fydc/fd
-    forcas_c = sum_secoes_c*cv_un.convArea('cm2','m2')*fd*cv_un.convForca('kN','tf')
+            # Não preciso reduzir a área de aço da área de compressão
+            # ABNT NBR 16868-1 11.5.3.2
+            # Aumentar a área de tensão à compressão, encontrando uma
+            # área equivalente se a tensão fosse fd
+            #sum_secoes_c += (egraute*math.pi*aco[0]**2/(4*100))*fyd/fdG
+            pass
+    forcas_c = sum_secoes_c*fd*cv_un.convPressao('MPa','tf/cm2') # tf
 
     # Para encontrar os esforços de tração, preciso calcular a
     # deformação em cada barra
     # Primeiro: encontrar o ângulo da deformação
     if x == 0.0:
-        x = 0.01
+        x = 1/1000000
     ang_def = math.atan(3/x)
     defs = []
     for aco in sub_aco:
-        if aco[1][1] <= d_fc - x:
-            d_this = d_fc-aco[1][1]
-            defs.append((d_this-x)*math.tan(ang_def))
+        d_this = d_fc-aco[1][1]
+        defs.append([(d_this-x)*math.tan(ang_def),aco[0]])
     forcas_t = 0.0
     aco = a_fbk.Aco_Passivo()
-    for eps in defs:
-        forcas_t += aco.o_s_de_Eps_s(eps)*fydt*cv_un.convForca('kN','tf')
+    for def_ in defs:
+        forcas_t -= aco.o_s_de_Eps_s(def_[0])*cv_un.convPressao('MPa','tf/cm2')*cv_as.barras_As(1,def_[1])
 
-    print('normal',normal)
-    print('forcas_c',forcas_c)
-    print('forcas_t',forcas_t)
-    soma = normal + forcas_c - forcas_t
+    #print('normal',normal)
+    #print('forcas_c',forcas_c)
+    #print('forcas_t',forcas_t)
+    soma = normal - forcas_c - forcas_t
+    #print('soma',soma)
     return soma
 
-normal = NRd_max/2
-esforcos_parcial = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,inc_x=inc_x,d_fc=d_fc,egraute=egraute,fydc=fydc,fydt=fydt,fd=fd)
-teste = esforcos_parcial(x=25)
-
+normal = 0
+esforcos_parcial = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,d_fc=d_fc,egraute=egraute,fyd=fyd,fd=fd)
+teste = esforcos_parcial(x=39.5)
+print('teste',teste)
 # Testa se f(val1) > 0, se sim, diminui val1
 # Testa se f(fal2) < 0, se sim, aumenta val2
 # Se não encontrar dentro de 10 tentativas, retorna erro
-val1 = -d
-val2 = 2*d
-print(esforcos_parcial(x=val1))
-print(esforcos_parcial(x=val2))
+val1 = 10*d
+val2 = -10*d
+print('esforcos_parcial(x=',val1,') = ',esforcos_parcial(x=val1))
+print('esforcos_parcial(x=',val2,') = ',esforcos_parcial(x=val2))
+#input()
 errorLevel = False
-for i in range(99):
+for i in range(999):
     if esforcos_parcial(x=val1) >= 0:
         val1 = 10*val1
     if esforcos_parcial(x=val2) <= 0:
         val2= 10*val2
     if esforcos_parcial(x=val1) < 0 and esforcos_parcial(x=val2) > 0:
         break
-    if i == 98:
+    if i == 998:
         errorLevel = True
         break
-print(errorLevel)
 
-#x = brentq(esforcos_parcial(),val1,val2,xtol=1e-6,rtol=1e-6)
-#print(x)
+if errorLevel:
+    print('Erro: não encontrou o valor de x')
+#else:
+    raiz = brentq(esforcos_parcial,val1,val2,xtol=1.0*10e-3,rtol=1.0*10e-3,maxiter=100)
+    print(raiz)
+
+"""FINALMENTE ENCONTREI X"""
+
+# 100 linearly spaced numbers
+x = np.linspace(-100,100,9999)
+
+# the function, which is y = x^3 here
+y=[]
+for x_ in x:
+    y.append(esforcos_parcial(x_))
+
+# setting the axes at the centre
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.spines['left'].set_position('center')
+ax.spines['bottom'].set_position('center')
+ax.spines['right'].set_color('none')
+ax.spines['top'].set_color('none')
+ax.xaxis.set_ticks_position('bottom')
+ax.yaxis.set_ticks_position('left')
+
+# plot the function
+plt.plot(x,y, color='b', lw = 2.0)
+
+# show the plot
+plt.show()

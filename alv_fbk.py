@@ -117,6 +117,10 @@ class Aco_Passivo:
         Tipo 'a' = retorna o_s para fyk\n
         Tipo 'b' = retorna o_s para fyd
         """
+        sinal = -1
+        if Eps_s >= 0:
+            sinal = +1
+        Eps_s = abs(Eps_s)
         if tipo == 'a':
             if Eps_s < self.Eps_fyk:
                 o_s = Eps_s*self.Es*0.001
@@ -131,4 +135,4 @@ class Aco_Passivo:
                 o_s = self.fyd
             else:
                 o_s = 0
-        return o_s
+        return sinal*o_s
