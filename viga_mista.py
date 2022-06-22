@@ -21,6 +21,7 @@ lamba = 0.8
 alfa_c = 0.85
 alfa_b = 1.0
 Mk = 3.384 #tf.m
+Vk = 4.705 #tf
 gama_f = 1.0
 fcd = 20/1.4 # MPa
 fbd = 6.4/2 # MPa
@@ -47,6 +48,7 @@ print('Poss1 =',poss1)
 # Se Poss1 = False, dimensionar como uma viga mista
 
 if poss1:
+    print(f'd={d}cm')
     x = (d-(d**2-2*(Md/(bw*alfa_c*fcd*cv_aux)))**(1/2))/0.8
     print('x =',round(x,3),'cm')
     As = Md/((d-0.5*0.8*x)*fyd)
@@ -63,6 +65,7 @@ if not poss1:
     c = beta*d*hc-beta*0.5*hc**2-Mc+Md
     x1 = (-b+math.sqrt(b*b-4*a*c))/(2*a)
     x2 = (-b-math.sqrt(b*b-4*a*c))/(2*a)
+    print(f'd={d}cm')
     print('x1 =',round(x1,3),'cm')
     print('x2 =',round(x2,3),'cm')
     As1 = (alfa_c*fcd*cv_aux*bw*hc+alfa_b*fbd*cv_aux*bw*
