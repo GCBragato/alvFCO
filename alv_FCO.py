@@ -65,7 +65,9 @@ def tensao_bloco(Eps):
 def tensao_aco(Eps):
     return a_fbk.o_s_de_Eps_s(Eps)
 
-def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],d_fc = 0.0,egraute=1.0,fyd=0.0,fd=0.0):
+def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],d_fc = 0.0,egraute=1.0,fyd=0.0,fd=0.0,fdG=0.0,mode=1):
+    # Modo 1 = retorna somente 'soma'
+    # Modo 2 = retorna sum_secoes_c,forcas_t_list,soma
     # Equação f(xln) = N - sum(ob*Ab)-sum(os*As)
     # Encontrar quais áreas entram no cálculo, com base em X
     # Preciso computar a distância da face mais comprimida até a seção
@@ -82,23 +84,25 @@ def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],d_fc = 0.0,egraute=1.0,fyd=0.
             # ABNT NBR 16868-1 11.5.3.2
             # Aumentar a área de tensão à compressão, encontrando uma
             # área equivalente se a tensão fosse fd
-            #sum_secoes_c += (egraute*math.pi*aco[0]**2/(4*100))*fyd/fdG
-            pass
+            sum_secoes_c += (egraute*math.pi*aco[0]**2/(4*100))*fyd/fdG
+            #pass
     forcas_c = sum_secoes_c*fd*cv_un.convPressao('MPa','tf/cm2') # tf
 
     # Para encontrar os esforços de tração, preciso calcular a
     # deformação em cada barra
     # Primeiro: encontrar o ângulo da deformação
     if x == 0.0:
-        x = 1/1000000
+        x = 1/99999999999999
     ang_def = math.atan(3/x)
     defs = []
     for aco in sub_aco:
         d_this = d_fc-aco[1][1]
         defs.append([(d_this-x)*math.tan(ang_def),aco[0]])
     forcas_t = 0.0
+    forcas_t_list = []
     aco = a_fbk.Aco_Passivo()
     for def_ in defs:
+        forcas_t_list.append(aco.o_s_de_Eps_s(def_[0])*cv_un.convPressao('MPa','tf/cm2')*cv_as.barras_As(1,def_[1]))
         forcas_t -= aco.o_s_de_Eps_s(def_[0])*cv_un.convPressao('MPa','tf/cm2')*cv_as.barras_As(1,def_[1])
 
     #print('normal',normal)
@@ -106,6 +110,8 @@ def esforcos(x=0.0,normal=0.0,secoes=[],sub_aco=[],d_fc = 0.0,egraute=1.0,fyd=0.
     #print('forcas_t',forcas_t)
     soma = normal - forcas_c - forcas_t
     #print('soma',soma)
+    if mode == 2:
+        return sum_secoes_c,forcas_t_list,soma
     return soma
 
 #main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,egraute,fd,fdG,fyd,N,normal)
@@ -372,7 +378,8 @@ def main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal):
 
 
     # normal = NRd_max/4
-    esforcos_parcial = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,d_fc=d_fc,egraute=egraute,fyd=fyd,fd=fd)
+    esforcos_parcial_1 = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,d_fc=d_fc,egraute=egraute,fyd=fyd,fd=fd,fdG=fdG,mode=1)
+    esforcos_parcial_2 = partial(esforcos,normal=normal,secoes=secoes,sub_aco=sub_aco,d_fc=d_fc,egraute=egraute,fyd=fyd,fd=fd,fdG=fdG,mode=2)
     #teste = esforcos_parcial(x=39.5)
     #print('teste',teste)
 
@@ -390,11 +397,11 @@ def main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal):
 
     errorLevel = False
     for i in range(999):
-        if esforcos_parcial(x=val1) >= 0:
+        if esforcos_parcial_1(x=val1) >= 0:
             val1 = 10*val1
-        if esforcos_parcial(x=val2) <= 0:
+        if esforcos_parcial_1(x=val2) <= 0:
             val2= 10*val2
-        if esforcos_parcial(x=val1) < 0 and esforcos_parcial(x=val2) > 0:
+        if esforcos_parcial_1(x=val1) < 0 and esforcos_parcial_1(x=val2) > 0:
             break
         if i == 998:
             errorLevel = True
@@ -404,7 +411,7 @@ def main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal):
         print('Erro: x não encontrado')
         return 0
     else:
-        raiz = brentq(esforcos_parcial,val1,val2,xtol=1.0*10e-6,rtol=1.0*10e-6,maxiter=100)
+        raiz = brentq(esforcos_parcial_1,val1,val2,xtol=1.0*10e-12,rtol=1.0*10e-12,maxiter=100)
 
     """
     # ---- PLOT TEST ----
@@ -433,7 +440,17 @@ def main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal):
     # show the plot
     plt.show()
     """
-    return raiz
+
+    # Com Nd e x calculado, procuramos MRd
+    # EMcg = MRd
+    forcas_c,forcas_t_list,_ = esforcos_parcial_2(x=raiz)
+    forcas_t = 0.0
+    for i,forca_t in enumerate(forcas_t_list):
+        print(forca_t,'forca_t')
+        forcas_t += forca_t*sub_aco[i][1][1]
+    MRd = (forcas_c*(d_fc-(raiz*0.8/2))+forcas_t)*cv_un.convMomento('tf.cm','tf.m')
+
+    return raiz, MRd
 
 if __name__ == '__main__':
     # Entrada de Dados
@@ -458,8 +475,11 @@ if __name__ == '__main__':
     sub_dir = 'Y' # Direção da subestrutura
     N = 99 # Discretizações por lado
     div = 4
-    normal = 29.533503036071373 * ( 1 / div ) # Normal (tf)
+    #normal = 29.533503036071373 * ( 1 / div ) # Normal (tf)
+    normal = 7.91
+    # Para normal = 7.91, tqs resulta em: MRd 2.94862 tf.m
+    # e x = 42.8 cm
 
     # Cálculo de x
-    resultado = main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal)
-    print(f'x = {resultado:.3f} cm')
+    x,MRd = main(fbk,aco,sub_blo,sub_aco,hef,tef,trav_a,trav_b,sub_dir,N,normal)
+    print(f'x = {x:.3f} cm e MRd = {MRd:.3f} tf.m')

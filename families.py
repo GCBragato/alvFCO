@@ -13,7 +13,7 @@ def dict_fam(fbk):
     P3515G2 = a_s.Bloco(34,14,19,'C',[1],eGraute,2,[],2.5)
     P3515F = a_s.Bloco(34,14,19,'C',[1,2],eGraute,2,[],2.5)
     P4015 = a_s.Bloco(39,14,19,'I',[],eGraute,2,[],2.5)
-    P4015G = a_s.Bloco(39,14,19,'I',[1],eGraute,2,[],2.5)
+    P4015G = a_s.Bloco(39,14,19,'I',[2],eGraute,2,[],2.5)
     P4015F = a_s.Bloco(39,14,19,'I',[1,2],eGraute,2,[],2.5)
     P5515 = a_s.Bloco(54,14,19,'T',[],eGraute,3,[],2.5)
     P5515G1 = a_s.Bloco(54,14,19,'T',[2],eGraute,3,[],2.5)

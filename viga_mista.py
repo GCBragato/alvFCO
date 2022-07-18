@@ -13,17 +13,17 @@ import alv_subs as a_sub
 import math
 
 # Entrada de Dados
-hc = 12 # cm
+hc = 0 # cm
 hb = 39 # cm
 bw = 14 # cm
 d = 12+39-3 # cm
 lamba = 0.8
-alfa_c = 0.85
+alfa_c = 0.85 # 0.85 p/Concreto e 1 p/Alvest
 alfa_b = 1.0
-Mk = 3.384 #tf.m
-Vk = 4.705 #tf
+Mk = 2.643 #tf.m
+Vk = 0 #tf
 gama_f = 1.0
-fcd = 20/1.4 # MPa
+fcd = 25/1.4 # MPa
 fbd = 6.4/2 # MPa
 fyd = (500/1.15)*cv_un.convPressao('MPa','tf/cm2')
 
@@ -71,7 +71,7 @@ if not poss1:
     As1 = (alfa_c*fcd*cv_aux*bw*hc+alfa_b*fbd*cv_aux*bw*
     (0.8*x1-hc))/fyd
     print('As1 = ',round(As1,3),'cm²')
-    barra = 10
+    barra = 12.5
     print(math.ceil(cv_as.As_barras(As1,barra)),f'Barras de {barra} mm')
     As2 = (alfa_c*fcd*cv_aux*bw*hc+alfa_b*fbd*cv_aux*bw*
     (0.8*x2-hc))/fyd
